@@ -2,12 +2,20 @@ package main
 
 import (
 	"fmt"
+	"context"
 	"net"
 	"io"
+	"sync"
+	"os"
+	"os/signal"
+	"syscall"
 	"strings"
 	"github.com/miladrahmat/MiniRedis/internal/resp"
 	"github.com/miladrahmat/MiniRedis/internal/tools"
 )
+
+var wg sync.WaitGroup
+var ctx, cancel = context.WithCancel(context.Background())
 
 func main() {
 
@@ -18,6 +26,16 @@ func main() {
 		return
 	}
 
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		fmt.Println("Shutting down...")
+		cancel() // All goroutines stop
+		l.Close()
+	}()
+
 	fmt.Println("Listening on port :6379")
 
 	// Listen for connections concurrently
@@ -25,22 +43,35 @@ func main() {
 		conn, err := l.Accept()
 		if (err != nil) {
 			fmt.Println(err)
-			continue
+			break
 		}
 
-		go handleClient(conn)
+		wg.Add(1)
+		go handleClient(conn, ctx)
 	}
+
+	wg.Wait()
 }
 
-func handleClient(conn net.Conn) {
+func handleClient(conn net.Conn, ctx context.Context) {
+	defer wg.Done()
 	defer conn.Close()
 
 	for {
+		// Check if the server is still up
+		select {
+			case <-ctx.Done():
+				return
+
+			default:
+				// Execute the loop
+		}
+
 		reader := resp.NewResp(conn)
 
 		// Read message from client
 		value, err := reader.Read()
-		if (err != nil) {
+		if err != nil {
 			if err == io.EOF {
 				break
 			}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"io"
 	"strings"
 	"github.com/miladrahmat/MiniRedis/internal/resp"
 	"github.com/miladrahmat/MiniRedis/internal/tools"
@@ -18,15 +19,20 @@ func main() {
 	}
 
 	fmt.Println("Listening on port :6379")
-	
-	// database := tools.NewDatabase()
 
-	// Listen for connections
-	conn, err := l.Accept()
-	if (err != nil) {
-		fmt.Println(err)
+	// Listen for connections concurrently
+	for {
+		conn, err := l.Accept()
+		if (err != nil) {
+			fmt.Println(err)
+			continue
+		}
+
+		go handleClient(conn)
 	}
-	
+}
+
+func handleClient(conn net.Conn) {
 	defer conn.Close()
 
 	for {

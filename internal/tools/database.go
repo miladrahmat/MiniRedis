@@ -5,31 +5,71 @@ import (
 )
 
 type Database struct {
-	mutex	sync.RWMutex		// Read/Write mutex for thread safety'
-	data	map[string]string	// The core storage
+	setMutex	sync.RWMutex	// Read/Write mutex for thread safety'
+	hsetMutex	sync.RWMutex
+	sets	map[string]string	// The core storage for SET
+	hsets	map[string]map[string]string // The core storage for HSET
 }
 
-func (d *Database) NewDatabase() *Database {
+func NewDatabase() *Database {
 	return &Database{
-		data: make(map[string]string),
+		sets: map[string]string{},
+		hsets: map[string]map[string]string{},
 	}
 }
 
 func (d *Database) SetItem(key string, value string) {
-	d.mutex.Lock() // Lock the mutex for writing
-	defer d.mutex.Unlock() // Unlock when function returns
+	d.setMutex.Lock() // Lock the mutex for writing
+	defer d.setMutex.Unlock() // Unlock when function returns
 
-	s.data[key] = value
+	d.sets[key] = value
 }
 
 func (d *Database) GetItem(key string) (string, bool) {
-	d.mutex.RLock() // Lock the mutex for reading
-	defer d.mutex.RUnlock()
+	d.setMutex.RLock() // Lock the mutex for reading
+	defer d.setMutex.RUnlock()
 
-	item, exists := d.data[key]
+	item, exists := d.sets[key]
 	if (!exists) {
-		return ("", false)
+		return "", false
 	}
 
-	return (item, true)
+	return item, true
+}
+
+func (d *Database) SetHash(hash string, key string, value string) {
+	d.hsetMutex.Lock()
+	defer d.hsetMutex.Unlock()
+
+	if _, ok := d.hsets[hash]; !ok {
+		d.hsets[hash] = map[string]string{}
+	}
+
+	d.hsets[hash][key] = value
+}
+
+func (d *Database) GetHash(hash string, key string) (string, bool) {
+	d.hsetMutex.RLock()
+	defer d.hsetMutex.RUnlock()
+
+	item, exists := d.hsets[hash][key]
+
+	if !exists {
+		return "", false
+	}
+
+	return item, true
+}
+
+func (d *Database) GetAllHash(hash string) (map[string]string, bool) {
+	d.hsetMutex.RLock()
+	defer d.hsetMutex.RUnlock()
+
+	items, exists := d.hsets[hash]
+
+	if !exists {
+		return map[string]string{}, false
+	}
+
+	return items, true
 }

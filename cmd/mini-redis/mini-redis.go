@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"net"
-	"os"
-	"githbub.com/miladrahmat/MiniRedis/internal/tools"
+	"strings"
+	"github.com/miladrahmat/MiniRedis/internal/resp"
+	"github.com/miladrahmat/MiniRedis/internal/tools"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 
 	fmt.Println("Listening on port :6379")
 	
-	var database *tools.Database = tools.Database.NewDatabase()
+	// database := tools.NewDatabase()
 
 	// Listen for connections
 	conn, err := l.Accept()
@@ -30,18 +30,41 @@ func main() {
 	defer conn.Close()
 
 	for {
-		resp := NewResp(conn)
+		reader := resp.NewResp(conn)
 
 		// Read message from client
-		value, err = resp.Read()
+		value, err := reader.Read()
 		if (err != nil) {
+			if err == io.EOF {
+				break
+			}
 			fmt.Println("Error reading from client: ", err.Error())
 			return
 		}
 
-		fmt.Println(value)
+		if value.Typ != "array" {
+			fmt.Println("Invalid request, expected array")
+			continue
+		}
 
-		// Ignore request, reply with PONG
-		conn.Write([]byte("+OK\r\n"))
+		if len(value.Array) == 0 {
+			fmt.Println("Invalid request, expected array length greater than 0")
+		}
+
+		command := strings.ToUpper(value.Array[0].Bulk)
+		args := value.Array[1:]
+
+		writer := resp.NewWriter(conn)
+
+		handler, ok := tools.Handlers[command]
+
+		if !ok {
+			fmt.Println("Invalid command: ", command)
+			writer.Write(resp.Value{Typ: "string", Str: ""})
+			continue
+		}
+
+		result := handler(args)
+		writer.Write(result)
 	}
 }

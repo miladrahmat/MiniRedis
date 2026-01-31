@@ -19,7 +19,7 @@ func (r *Resp) readLine() (line []byte, n int, err error) {
 	for {
 		b, err := r.reader.ReadByte()
 
-		if (err != nil) {
+		if err != nil {
 			return nil, 0, err
 		}
 
@@ -37,13 +37,13 @@ func (r *Resp) readLine() (line []byte, n int, err error) {
 func (r *Resp) readInt() (x int, n int, err error) {
 	line, n, err := r.readLine()
 
-	if (err != nil) {
+	if err != nil {
 		return 0, 0, err
 	}
 
 	i64, err := strconv.ParseInt(string(line), 10, 64)
 
-	if (err != nil) {
+	if err != nil {
 		return 0, n, err
 	}
 
@@ -53,7 +53,7 @@ func (r *Resp) readInt() (x int, n int, err error) {
 func (r * Resp) Read() (Value, error) {
 	_type, err := r.reader.ReadByte()
 
-	if (err != nil) {
+	if err != nil {
 		return Value{}, err
 	}
 
@@ -78,7 +78,7 @@ func (r *Resp) readArray() (Value, error) {
 	// The length of the array
 	length, _, err := r.readInt()
 
-	if (err != nil) {
+	if err != nil {
 		return v, err
 	}
 
@@ -88,7 +88,7 @@ func (r *Resp) readArray() (Value, error) {
 	for i := 0; i < length; i++ {
 		val, err := r.Read()
 
-		if (err != nil) {
+		if err != nil {
 			return v, err
 		}
 
@@ -105,7 +105,7 @@ func (r *Resp) readBulk() (Value, error) {
 
 	length, _, err := r.readInt()
 
-	if (err != nil) {
+	if err != nil {
 		return v, err
 	}
 

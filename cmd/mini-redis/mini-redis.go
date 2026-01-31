@@ -15,23 +15,29 @@ import (
 )
 
 var wg sync.WaitGroup
-var ctx, cancel = context.WithCancel(context.Background())
 
 func main() {
+	var ctx, cancel = context.WithCancel(context.Background())
 
 	// Create a new server
 	l, err := net.Listen("tcp", ":6379")
-	if (err != nil) {
+	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
+	// In case of panic, making sure the listener closes
+	defer l.Close()
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		<-sigChan
 		fmt.Println("Shutting down...")
+		signal.Stop(sigChan)
 		cancel() // All goroutines stop
 		l.Close()
 	}()
@@ -42,7 +48,14 @@ func main() {
 	for {
 		conn, err := l.Accept()
 		if (err != nil) {
-			fmt.Println(err)
+			select {
+				case <-ctx.Done():
+					// Server shut down, expected
+				
+				default:
+					// Unexpected error
+					fmt.Println(err)
+			}
 			break
 		}
 

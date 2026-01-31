@@ -30,7 +30,7 @@ func (d *Database) GetItem(key string) (string, bool) {
 	defer d.setMutex.RUnlock()
 
 	item, exists := d.sets[key]
-	if (!exists) {
+	if !exists {
 		return "", false
 	}
 

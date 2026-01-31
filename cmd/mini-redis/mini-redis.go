@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"context"
+	"errors"
 	"net"
 	"io"
 	"sync"
@@ -85,7 +86,7 @@ func handleClient(conn net.Conn, ctx context.Context) {
 		// Read message from client
 		value, err := reader.Read()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			fmt.Println("Error reading from client: ", err.Error())
